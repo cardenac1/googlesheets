@@ -306,9 +306,10 @@ select.fi{cursor:pointer}
 <div class="toast" id="toast"></div>
 
 <script>
-var patients = [];
-var curId    = null;
-var sortMode = 0;
+var patients      = [];
+var curId         = null;
+var sortMode      = 0;
+var displayedList = [];
 var SORT_LABELS = ['Sort ▾', 'Priority ▴', 'Name ▴', 'Room ▴'];
 
 var PRI_CLASS = {
@@ -417,15 +418,16 @@ function toggleCardTask(e, id, visIdx) {
   var tasks = parsed.tasks.filter(function(t){ return t.type === 'task'; });
   if (tasks[visIdx]) tasks[visIdx].done = !tasks[visIdx].done;
   p.ToDo = serializeTodo(parsed.tasks);
-  google.script.run
-    .withSuccessHandler(function(){ renderList(); })
-    .withFailureHandler(function(err){ toast('Error: ' + err.message); })
+  renderList(); // instant optimistic update
+  google.script.run // background save — no callback needed
+    .withFailureHandler(function(){ toast('Save failed'); })
     .savePatient(p);
 }
 
 function renderList() {
   var el = document.getElementById('ptList');
   var list = getFilteredSorted();
+  displayedList = list; // store so prev/next use same order
   var n = patients.length;
   document.getElementById('censusLabel').textContent = n + (n === 1 ? ' patient' : ' patients');
   if (!n) {
@@ -467,6 +469,7 @@ function renderList() {
 function selectPt(id) {
   curId = String(id);
   var p = findPt(id); if (!p) return;
+  if (!displayedList.length) displayedList = getFilteredSorted();
   showDetail(p);
 }
 
@@ -510,25 +513,22 @@ function goBack() {
 }
 
 function prevPt() {
-  var list = getFilteredSorted();
   var idx = -1;
-  for (var i = 0; i < list.length; i++) { if (String(list[i].ID) === String(curId)) { idx = i; break; } }
-  if (idx > 0) selectPt(list[idx-1].ID);
+  for (var i = 0; i < displayedList.length; i++) { if (String(displayedList[i].ID) === String(curId)) { idx = i; break; } }
+  if (idx > 0) selectPt(displayedList[idx-1].ID);
 }
 
 function nextPt() {
-  var list = getFilteredSorted();
   var idx = -1;
-  for (var i = 0; i < list.length; i++) { if (String(list[i].ID) === String(curId)) { idx = i; break; } }
-  if (idx !== -1 && idx < list.length-1) selectPt(list[idx+1].ID);
+  for (var i = 0; i < displayedList.length; i++) { if (String(displayedList[i].ID) === String(curId)) { idx = i; break; } }
+  if (idx !== -1 && idx < displayedList.length-1) selectPt(displayedList[idx+1].ID);
 }
 
 function updateNavBtns() {
-  var list = getFilteredSorted();
   var idx = -1;
-  for (var i = 0; i < list.length; i++) { if (String(list[i].ID) === String(curId)) { idx = i; break; } }
+  for (var i = 0; i < displayedList.length; i++) { if (String(displayedList[i].ID) === String(curId)) { idx = i; break; } }
   document.getElementById('prevBtn').disabled = idx <= 0;
-  document.getElementById('nextBtn').disabled = idx === -1 || idx >= list.length - 1;
+  document.getElementById('nextBtn').disabled = idx === -1 || idx >= displayedList.length - 1;
 }
 
 // ── Tabs ──────────────────────────────────────────────────────
