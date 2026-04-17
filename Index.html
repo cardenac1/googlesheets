@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<title>MedList</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--bg2:#111;--card:#1a1a1a;--border:#2a2a2a;
+  --text:#e8eaed;--muted:#888;--primary:#3b82f6;
+  --danger:#ef4444;--orange:#f97316;--amber:#f59e0b;
+  --yellow:#eab308;--lime:#84cc16;--slate:#64748b;--green:#10b981;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;display:flex;flex-direction:column}
+
+/* ── Header ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;z-index:200}
+.hdr-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.hdr h1{font-size:1.15rem;font-weight:700;white-space:nowrap}
+.census{font-size:.85rem;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:10px 18px;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;-webkit-tap-highlight-color:transparent;min-height:44px}
+.btn-blue{background:var(--primary);color:#fff}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-red{background:var(--danger);color:#fff}
+.btn-sm{padding:8px 14px;font-size:.85rem;min-height:40px}
+
+/* ── Views ── */
+.view{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.hidden{display:none!important}
+
+/* ── Patient list view ── */
+#listView{background:var(--bg)}
+.pt-list{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+
+/* Patient card */
+.pt-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;transition:border-color .15s}
+.pt-card:active{border-color:var(--primary);background:#1f1f1f}
+.pt-card-top{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.pt-card-left{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;padding-top:4px}
+.dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.dot-blank{background:transparent;border:2px solid var(--border)}
+
+/* Two-column split: info left, tasks right */
+.pt-card-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.pt-card-info{min-width:0}
+.pt-card-name{font-size:1rem;font-weight:700;margin-bottom:5px;color:#60a5fa;line-height:1.3}
+.pt-card-meta{display:flex;flex-direction:column;gap:5px;margin-bottom:5px;align-items:flex-start}
+.pt-card-problems{font-size:.78rem;color:var(--muted);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-top:4px}
+
+/* Inline task list on card */
+.pt-card-tasks{min-width:0;border-left:1px solid var(--border);padding-left:12px}
+.pt-card-tasks-title{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.pt-card-task-item{display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;font-size:.82rem;line-height:1.4}
+.pt-card-task-cb{width:14px;height:14px;min-width:14px;border:1.5px solid #475569;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pt-card-task-cb.done{background:#22c55e;border-color:#22c55e}
+.pt-card-task-cb.done::after{content:'';width:3px;height:7px;border:solid #000;border-width:0 2px 2px 0;transform:rotate(45deg);margin-bottom:1px}
+.pt-card-task-text{color:var(--text);word-break:break-word}
+.pt-card-task-text.done{text-decoration:line-through;color:var(--muted)}
+.pt-card-no-tasks{font-size:.8rem;color:var(--muted);font-style:italic}
+
+/* Card save bar */
+.pt-card-footer{display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.pt-card-save{flex:1;background:var(--primary);color:#fff;border:none;border-radius:7px;padding:9px 14px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;min-height:40px;-webkit-tap-highlight-color:transparent}
+.pt-card-save:active{opacity:.8}
+.pt-card-open{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:9px 14px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;min-height:40px;-webkit-tap-highlight-color:transparent}
+.pt-card-open:active{background:#1f1f1f}
+
+/* ── Priority badges ── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.badge-sm{font-size:.72rem;padding:3px 9px}
+.p-complete   {background:var(--green); color:#000}
+.p-critical   {background:var(--danger);color:#fff}
+.p-high       {background:var(--orange);color:#fff}
+.p-high-medium{background:var(--amber); color:#000}
+.p-medium     {background:var(--yellow);color:#000}
+.p-medium-low {background:var(--lime);  color:#000}
+.p-low        {background:var(--slate); color:#fff}
+.p-blank      {display:none}
+
+.dot-complete   {background:var(--green)}
+.dot-critical   {background:var(--danger)}
+.dot-high       {background:var(--orange)}
+.dot-high-medium{background:var(--amber)}
+.dot-medium     {background:var(--yellow)}
+.dot-medium-low {background:var(--lime)}
+.dot-low        {background:var(--slate)}
+
+.badge-room{background:transparent;border:1px solid #ef4444;color:#ef4444;font-size:.75rem;padding:3px 9px;border-radius:20px;font-weight:600}
+.badge-mrn {background:transparent;border:1px solid #10b981;color:#10b981;font-size:.75rem;padding:3px 9px;border-radius:20px;font-weight:600}
+.badge-ics {background:transparent;border:1px solid var(--border);color:var(--muted);font-size:.75rem;padding:3px 9px;border-radius:20px;font-weight:600}
+
+/* ── Detail view ── */
+#detailView{background:var(--bg)}
+.pt-hdr{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;display:flex;align-items:flex-start;gap:10px}
+.pt-hdr-info{flex:1;min-width:0}
+.pt-hdr-name{font-size:1.1rem;font-weight:700;color:#60a5fa}
+.pt-hdr-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;align-items:center}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{padding:13px 18px;font-size:.9rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;min-height:48px;display:flex;align-items:center}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-pane{flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch}
+
+/* ── Form fields ── */
+.fg{margin-bottom:16px}
+.fl{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.fi{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-size:1rem;font-family:inherit;-webkit-appearance:none;line-height:1.5}
+.fi:focus{outline:none;border-color:var(--primary)}
+textarea.fi{resize:none;overflow:hidden;min-height:52px}
+select.fi{cursor:pointer}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.save-bar{margin-top:8px;padding-bottom:24px}
+.ph{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:.9rem;line-height:1.6}
+.ph strong{display:block;color:var(--text);margin-bottom:6px;font-size:1rem}
+
+/* ── Expandable field (ICS / Problems) ── */
+.expand-field{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.expand-header{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:44px}
+.expand-header:active{background:rgba(255,255,255,.04)}
+.expand-header-text{font-size:1rem;color:var(--muted)}
+.expand-header-text.has-content{color:var(--text)}
+.expand-arrow{color:var(--muted);font-size:.85rem;transition:transform .2s;flex-shrink:0}
+.expand-arrow.open{transform:rotate(180deg)}
+.expand-body{padding:0 13px 13px}
+.expand-body textarea.fi{border:none;background:transparent;padding:4px 0;border-radius:0;border-bottom:1px solid var(--border)}
+.expand-body textarea.fi:focus{border-bottom-color:var(--primary)}
+
+/* ── Todo widget ── */
+.todo-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.todo-list{display:flex;flex-direction:column;margin-bottom:8px}
+.todo-item{display:flex;align-items:flex-start;gap:.5rem;padding:.3rem .25rem;border-radius:.3rem;position:relative;min-height:44px}
+.todo-item:active{background:rgba(255,255,255,.04)}
+.todo-item.completed{opacity:.5}
+.todo-item.completed .todo-text{text-decoration:line-through;color:#64748b}
+.todo-checkbox{width:22px;height:22px;min-width:22px;border:2px solid #475569;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px;transition:.15s;background:transparent;flex-shrink:0}
+.todo-checkbox:active{border-color:#22c55e;background:rgba(34,197,94,.1)}
+.todo-checkbox.checked{background:#22c55e;border-color:#22c55e}
+.todo-checkbox.checked::after{content:'';width:5px;height:10px;border:solid #000;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);margin-bottom:2px}
+.todo-text{flex:1;font-size:.95rem;line-height:1.5;color:var(--text);word-break:break-word;cursor:pointer;padding:2px 0}
+.todo-text-input{flex:1;background:rgba(0,0,0,.3);border:1px solid #22c55e;border-radius:.2rem;padding:.25rem .4rem;color:var(--text);font-family:inherit;font-size:.95rem;line-height:1.5;outline:none;resize:none;overflow:hidden;width:100%}
+.todo-del{width:28px;height:28px;min-width:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;opacity:.4;transition:.15s;color:#64748b;font-size:1rem;flex-shrink:0;margin-top:0}
+.todo-item:active .todo-del{opacity:1}
+.todo-del:active{background:rgba(239,68,68,.2);color:#ef4444}
+.todo-add-row{display:flex;gap:.5rem;margin-top:4px}
+.todo-add-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.55rem .8rem;color:var(--text);font-family:inherit;font-size:.95rem;outline:none;min-height:44px}
+.todo-add-input:focus{border-color:#22c55e}
+.todo-add-input::placeholder{color:rgba(148,163,184,.45);font-style:italic}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;display:flex;align-items:flex-end;padding:0}
+@media(min-width:500px){.overlay{align-items:center;padding:16px}}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:500px){.modal{border-radius:14px;max-width:460px;margin:auto;max-height:90vh}}
+.modal-hdr{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:1.05rem;flex-shrink:0}
+.modal-body{padding:16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-ftr{padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.x-btn{background:none;border:none;color:var(--muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:4px 6px;font-family:inherit;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+
+/* ── Detail name colors ── */
+#fName{color:#60a5fa}
+#fRoom{color:#ef4444}
+#fMRN {color:#10b981}
+#dhRoom{color:#ef4444;border-color:#ef4444}
+#dhMRN {color:#10b981;border-color:#10b981}
+
+/* Toast */
+.toast{position:fixed;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#222;border:1px solid var(--border);border-radius:10px;padding:12px 22px;font-size:.9rem;z-index:600;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-left">
+    <button class="btn btn-ghost btn-sm hidden" id="backBtn" onclick="goBack()">&#8592; Back</button>
+    <h1>MedList</h1>
+    <span class="census" id="censusLabel"></span>
+  </div>
+  <button class="btn btn-blue btn-sm" id="addBtn" onclick="openAdd()">+ Patient</button>
+</div>
+
+<!-- ── LIST VIEW ── -->
+<div class="view" id="listView">
+  <div class="pt-list" id="ptList">
+    <div style="padding:40px;text-align:center;color:var(--muted)">Loading…</div>
+  </div>
+</div>
+
+<!-- ── DETAIL VIEW ── -->
+<div class="view hidden" id="detailView">
+
+  <div class="pt-hdr">
+    <div class="pt-hdr-info">
+      <div class="pt-hdr-name" id="dhName"></div>
+      <div class="pt-hdr-badges">
+        <span class="badge-room" id="dhRoom"></span>
+        <span class="badge-mrn"  id="dhMRN"></span>
+        <span class="badge"      id="dhPri"></span>
+      </div>
+    </div>
+    <button class="btn btn-red btn-sm" onclick="confirmDelete()">Delete</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" id="t-details" onclick="goTab('details')">Details</div>
+    <div class="tab"    id="t-vitals"  onclick="goTab('vitals')">Vitals / Labs</div>
+    <div class="tab"    id="t-orders"  onclick="goTab('orders')">Orders</div>
+  </div>
+
+  <!-- Details pane -->
+  <div class="tab-pane" id="p-details">
+    <div class="g2">
+      <div class="fg"><div class="fl">Name</div><input class="fi" id="fName" type="text" placeholder="Last, First" autocomplete="off"></div>
+      <div class="fg"><div class="fl">Priority</div>
+        <select class="fi" id="fPri">
+          <option value="">— None —</option>
+          <option value="Critical">Critical</option>
+          <option value="High">High</option>
+          <option value="High Medium">High Medium</option>
+          <option value="Medium">Medium</option>
+          <option value="Medium Low">Medium Low</option>
+          <option value="Low">Low</option>
+          <option value="Complete">Complete</option>
+        </select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fg"><div class="fl">Room</div><input class="fi" id="fRoom" type="text" placeholder="5NE-531" autocomplete="off"></div>
+      <div class="fg"><div class="fl">MRN</div><input class="fi" id="fMRN" type="text" autocomplete="off"></div>
+    </div>
+
+    <div class="fg">
+      <div class="fl">ICS / Team</div>
+      <div class="expand-field" id="icsField">
+        <div class="expand-header" onclick="toggleExpand('ics')">
+          <span class="expand-header-text" id="icsPreview">Tap to add ICS / Team…</span>
+          <span class="expand-arrow" id="icsArrow">▼</span>
+        </div>
+        <div class="expand-body hidden" id="icsBody">
+          <textarea class="fi" id="fICS" rows="2" placeholder="ICS / Team details…" oninput="autoGrow(this);updateICSPreview()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <div class="fl">Problems / Diagnoses</div>
+      <div class="expand-field" id="problemsField">
+        <div class="expand-header" onclick="toggleExpand('problems')">
+          <span class="expand-header-text" id="problemsPreview">Tap to add problems…</span>
+          <span class="expand-arrow" id="problemsArrow">▼</span>
+        </div>
+        <div class="expand-body hidden" id="problemsBody">
+          <textarea class="fi" id="fProblems" rows="3" placeholder="Problems / Diagnoses…" oninput="autoGrow(this);updateProblemsPreview()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <div class="fl">To Do</div>
+      <div class="todo-wrap" id="todoContainer"></div>
+    </div>
+    <div class="save-bar"><button class="btn btn-blue" style="width:100%" onclick="saveDetails()">Save Details</button></div>
+  </div>
+
+  <!-- Vitals / Labs pane -->
+  <div class="tab-pane hidden" id="p-vitals">
+    <div class="ph"><strong>Vitals &amp; Labs</strong>Cerner import and manual entry coming in the next update.</div>
+  </div>
+
+  <!-- Orders pane -->
+  <div class="tab-pane hidden" id="p-orders">
+    <div class="fg"><div class="fl">Active Medications &amp; Orders</div><textarea class="fi" id="fActiveMeds" rows="6" oninput="autoGrow(this)"></textarea></div>
+    <div class="fg"><div class="fl">Home Medications</div><textarea class="fi" id="fHomeMeds" rows="6" oninput="autoGrow(this)"></textarea></div>
+    <div class="save-bar"><button class="btn btn-blue" style="width:100%" onclick="saveOrders()">Save Orders</button></div>
+  </div>
+
+</div>
+
+<!-- Add Patient Modal -->
+<div class="overlay hidden" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">Add Patient <button class="x-btn" onclick="closeAdd()">&times;</button></div>
+    <div class="modal-body">
+      <div class="g2">
+        <div class="fg"><div class="fl">Name *</div><input class="fi" id="mName" type="text" placeholder="Last, First" autocomplete="off"></div>
+        <div class="fg"><div class="fl">Priority</div>
+          <select class="fi" id="mPri">
+            <option value="">— None —</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="High Medium">High Medium</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Medium Low">Medium Low</option>
+            <option value="Low">Low</option>
+            <option value="Complete">Complete</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fg"><div class="fl">Room</div><input class="fi" id="mRoom" type="text" placeholder="5NE-531" autocomplete="off"></div>
+        <div class="fg"><div class="fl">MRN</div><input class="fi" id="mMRN" type="text" autocomplete="off"></div>
+      </div>
+      <div class="fg"><div class="fl">ICS / Attending</div><input class="fi" id="mICS" type="text" autocomplete="off"></div>
+      <div class="fg"><div class="fl">Problems</div><textarea class="fi" id="mProblems" rows="3" oninput="autoGrow(this)"></textarea></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-blue"  onclick="submitAdd()">Add Patient</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var patients = [];
+var curId    = null;
+
+var PRI_CLASS = {
+  ''           : 'p-blank',
+  'complete'   : 'p-complete',
+  'critical'   : 'p-critical',
+  'high'       : 'p-high',
+  'high medium': 'p-high-medium',
+  'medium'     : 'p-medium',
+  'medium low' : 'p-medium-low',
+  'low'        : 'p-low'
+};
+var DOT_CLASS = {
+  ''           : 'dot-blank',
+  'complete'   : 'dot-complete',
+  'critical'   : 'dot-critical',
+  'high'       : 'dot-high',
+  'high medium': 'dot-high-medium',
+  'medium'     : 'dot-medium',
+  'medium low' : 'dot-medium-low',
+  'low'        : 'dot-low'
+};
+
+function priClass(p)  { return PRI_CLASS[(p||'').toLowerCase()] || 'p-blank'; }
+function dotClass(p)  { return DOT_CLASS[(p||'').toLowerCase()] || 'dot-blank'; }
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight) + 'px';
+}
+
+function toggleExpand(which) {
+  var body  = document.getElementById(which + 'Body');
+  var arrow = document.getElementById(which + 'Arrow');
+  var isHidden = body.classList.contains('hidden');
+  body.classList.toggle('hidden', !isHidden);
+  arrow.classList.toggle('open', isHidden);
+  if (isHidden) {
+    var ta = body.querySelector('textarea');
+    if (ta) { autoGrow(ta); ta.focus(); }
+  }
+}
+
+function updateICSPreview() {
+  var val = (document.getElementById('fICS').value || '').trim();
+  var el  = document.getElementById('icsPreview');
+  el.textContent = val ? (val.length > 40 ? val.substring(0,40) + '…' : val) : 'Tap to add ICS / Team…';
+  el.className   = 'expand-header-text' + (val ? ' has-content' : '');
+}
+
+function updateProblemsPreview() {
+  var val = (document.getElementById('fProblems').value || '').trim();
+  var el  = document.getElementById('problemsPreview');
+  el.textContent = val ? (val.length > 40 ? val.substring(0,40) + '…' : val) : 'Tap to add problems…';
+  el.className   = 'expand-header-text' + (val ? ' has-content' : '');
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+window.onload = function() {
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAdd();
+  });
+  google.script.run
+    .withSuccessHandler(function(data) { patients = data || []; renderList(); })
+    .withFailureHandler(function(e) {
+      document.getElementById('ptList').innerHTML =
+        '<div style="padding:40px;text-align:center;color:var(--muted)">Error: ' + e.message + '</div>';
+    })
+    .getPatients();
+};
+
+// ── Render patient list ────────────────────────────────────────
+function renderTasksHTML(p) {
+  var parsed = parseTodo(p.ToDo);
+  var tasks = parsed.tasks.filter(function(t){ return t.type === 'task'; });
+  if (!tasks.length) return '<div class="pt-card-no-tasks">No tasks</div>';
+  var html = '';
+  var shown = tasks.slice(0, 5);
+  for (var i = 0; i < shown.length; i++) {
+    var t = shown[i];
+    html += '<div class="pt-card-task-item">' +
+      '<div class="pt-card-task-cb' + (t.done ? ' done' : '') + '" onclick="toggleCardTask(event,\'' + p.ID + '\',' + i + ')"></div>' +
+      '<span class="pt-card-task-text' + (t.done ? ' done' : '') + '">' + esc(t.text) + '</span>' +
+    '</div>';
+  }
+  if (tasks.length > 5) html += '<div style="font-size:.75rem;color:var(--muted);margin-top:3px">+' + (tasks.length - 5) + ' more…</div>';
+  return html;
+}
+
+function toggleCardTask(e, id, visIdx) {
+  e.stopPropagation();
+  var p = findPt(id); if (!p) return;
+  var parsed = parseTodo(p.ToDo);
+  var tasks = parsed.tasks.filter(function(t){ return t.type === 'task'; });
+  if (tasks[visIdx]) tasks[visIdx].done = !tasks[visIdx].done;
+  p.ToDo = serializeTodo(parsed.tasks);
+  renderList();
+}
+
+function saveCardPt(e, id) {
+  e.stopPropagation();
+  var p = findPt(id); if (!p) return;
+  google.script.run
+    .withSuccessHandler(function(){ toast('Saved ' + (p.Name || 'patient')); })
+    .withFailureHandler(function(err){ toast('Error: ' + err.message); })
+    .savePatient(p);
+}
+
+function renderList() {
+  var el = document.getElementById('ptList');
+  var n  = patients.length;
+  document.getElementById('censusLabel').textContent = n + (n === 1 ? ' patient' : ' patients');
+  if (!n) {
+    el.innerHTML = '<div style="padding:50px 20px;text-align:center;color:var(--muted);font-size:1rem">No patients — tap + to add</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < patients.length; i++) {
+    var p = patients[i];
+    html +=
+      '<div class="pt-card">' +
+        '<div class="pt-card-top" onclick="selectPt(\'' + p.ID + '\')">' +
+          '<div class="pt-card-left"><span class="dot ' + dotClass(p.Priority) + '"></span></div>' +
+          '<div class="pt-card-cols">' +
+            '<div class="pt-card-info">' +
+              '<div class="pt-card-name">' + esc(p.Name || '—') + '</div>' +
+              '<div class="pt-card-meta">' +
+                (p.Room ? '<span class="badge-room">' + esc(p.Room) + '</span>' : '') +
+                (p.MRN  ? '<span class="badge-mrn">MRN ' + esc(p.MRN) + '</span>' : '') +
+                (p.Priority ? '<span class="badge badge-sm ' + priClass(p.Priority) + '">' + esc(p.Priority) + '</span>' : '') +
+              '</div>' +
+              (p.Problems ? '<div class="pt-card-problems">' + esc(p.Problems) + '</div>' : '') +
+            '</div>' +
+            '<div class="pt-card-tasks">' +
+              '<div class="pt-card-tasks-title">Tasks</div>' +
+              renderTasksHTML(p) +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="pt-card-footer">' +
+          '<button class="pt-card-save" onclick="saveCardPt(event,\'' + p.ID + '\')">&#10003; Save</button>' +
+          '<button class="pt-card-open" onclick="selectPt(\'' + p.ID + '\')">Open ›</button>' +
+        '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function selectPt(id) {
+  curId = String(id);
+  var p = findPt(id); if (!p) return;
+  showDetail(p);
+}
+
+function showDetail(p) {
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.remove('hidden');
+  document.getElementById('backBtn').classList.remove('hidden');
+  document.getElementById('addBtn').classList.add('hidden');
+
+  var pri = p.Priority || '';
+  document.getElementById('dhName').textContent = p.Name || '—';
+  document.getElementById('dhRoom').textContent = p.Room || '';
+  document.getElementById('dhMRN').textContent  = p.MRN ? 'MRN ' + p.MRN : '';
+  var pb = document.getElementById('dhPri');
+  pb.textContent = pri;
+  pb.className   = 'badge ' + priClass(pri);
+  if (!pri) pb.style.display = 'none'; else pb.style.display = '';
+
+  sv('fName', p.Name); sv('fPri', p.Priority || '');
+  sv('fRoom', p.Room); sv('fMRN', p.MRN);
+  sv('fICS',  p.ICS);  sv('fProblems', p.Problems);
+  sv('fActiveMeds', p.ActiveMeds); sv('fHomeMeds', p.HomeMeds);
+
+  // Reset expandable fields
+  ['ics','problems'].forEach(function(which){
+    document.getElementById(which+'Body').classList.add('hidden');
+    document.getElementById(which+'Arrow').classList.remove('open');
+  });
+  updateICSPreview();
+  updateProblemsPreview();
+
+  // Auto-grow textareas
+  setTimeout(function(){
+    ['fActiveMeds','fHomeMeds'].forEach(function(id){
+      var ta = document.getElementById(id);
+      if (ta) autoGrow(ta);
+    });
+  }, 50);
+
+  renderTodo(document.getElementById('todoContainer'), p);
+  goTab('details');
+}
+
+function goBack() {
+  document.getElementById('detailView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  document.getElementById('backBtn').classList.add('hidden');
+  document.getElementById('addBtn').classList.remove('hidden');
+  renderList();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function goTab(name) {
+  var names = ['details','vitals','orders'];
+  for (var i = 0; i < names.length; i++) {
+    var n = names[i];
+    document.getElementById('t-' + n).className = 'tab' + (n === name ? ' on' : '');
+    document.getElementById('p-' + n).className = 'tab-pane' + (n === name ? '' : ' hidden');
+  }
+}
+
+// ── Save ──────────────────────────────────────────────────────
+function saveDetails() {
+  var p = findPt(curId); if (!p) return;
+  p.Name = gv('fName'); p.Priority = gv('fPri');
+  p.Room = gv('fRoom'); p.MRN = gv('fMRN');
+  p.ICS  = gv('fICS');  p.Problems = gv('fProblems');
+  google.script.run
+    .withSuccessHandler(function() { showDetail(p); toast('Saved'); })
+    .withFailureHandler(function(e) { toast('Error: ' + e.message); })
+    .savePatient(p);
+}
+
+function saveOrders() {
+  var p = findPt(curId); if (!p) return;
+  p.ActiveMeds = gv('fActiveMeds');
+  p.HomeMeds   = gv('fHomeMeds');
+  google.script.run
+    .withSuccessHandler(function() { toast('Orders saved'); })
+    .withFailureHandler(function(e) { toast('Error: ' + e.message); })
+    .savePatient(p);
+}
+
+function confirmDelete() {
+  var p = findPt(curId); if (!p) return;
+  if (!confirm('Delete ' + (p.Name || 'patient') + '?')) return;
+  var id = curId;
+  google.script.run
+    .withSuccessHandler(function() {
+      patients = patients.filter(function(x) { return String(x.ID) !== String(id); });
+      curId = null; goBack(); toast('Deleted');
+    })
+    .withFailureHandler(function(e) { toast('Error: ' + e.message); })
+    .deletePatient(id);
+}
+
+// ── Add modal ─────────────────────────────────────────────────
+function openAdd() {
+  ['mName','mRoom','mMRN','mICS','mProblems'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('mPri').value = 'Medium';
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(function() { document.getElementById('mName').focus(); }, 200);
+}
+function closeAdd() { document.getElementById('modal').classList.add('hidden'); }
+
+function submitAdd() {
+  var name = document.getElementById('mName').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  var p = {
+    Name: name, Priority: gv('mPri'),
+    Room: gv('mRoom'), MRN: gv('mMRN'), ICS: gv('mICS'),
+    Problems: gv('mProblems'), ToDo: '', ActiveMeds: '', HomeMeds: ''
+  };
+  google.script.run
+    .withSuccessHandler(function(newId) {
+      p.ID = String(newId); patients.push(p);
+      closeAdd(); selectPt(p.ID); toast('Patient added');
+    })
+    .withFailureHandler(function(e) { toast('Failed: ' + e.message); })
+    .savePatient(p);
+}
+
+// ── Todo widget ───────────────────────────────────────────────
+function parseTodo(text) {
+  if (!text) return { tasks: [] };
+  var tasks = [];
+  var lines = String(text).split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (/^\[x\] /i.test(line))     tasks.push({ type:'task',  text:line.substring(4), done:true  });
+    else if (/^\[ \] /.test(line)) tasks.push({ type:'task',  text:line.substring(4), done:false });
+    else if (line.trim())           tasks.push({ type:'plain', text:line });
+  }
+  return { tasks: tasks };
+}
+
+function serializeTodo(tasks) {
+  var plains  = tasks.filter(function(t){ return t.type !== 'task'; });
+  var pending = tasks.filter(function(t){ return t.type === 'task' && !t.done; });
+  var done    = tasks.filter(function(t){ return t.type === 'task' && t.done; });
+  return plains.concat(pending).concat(done).map(function(t){
+    return t.type === 'task' ? (t.done ? '[x] ' : '[ ] ') + t.text : t.text;
+  }).join('\n');
+}
+
+function renderTodo(container, p) {
+  if (!container) return;
+  container.innerHTML = '';
+  var parsed = parseTodo(p.ToDo);
+
+  function manualSave() {
+    p.ToDo = serializeTodo(parsed.tasks);
+  }
+
+  function startEdit(item, textEl) {
+    var inp = document.createElement('textarea');
+    inp.className = 'todo-text-input'; inp.value = item.text; inp.rows = 1;
+    function resize(){ inp.style.height='auto'; inp.style.height=inp.scrollHeight+'px'; }
+    inp.addEventListener('input', resize);
+    inp.addEventListener('keydown', function(e){
+      if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); item.text=this.value.trim()||item.text; manualSave(); renderTodo(container,p); }
+      else if (e.key==='Escape'){ renderTodo(container,p); }
+    });
+    inp.addEventListener('blur', function(){ item.text=this.value.trim()||item.text; manualSave(); renderTodo(container,p); });
+    textEl.replaceWith(inp); inp.focus(); inp.select(); resize();
+  }
+
+  function makeDel(item) {
+    var dl = document.createElement('div'); dl.className='todo-del'; dl.innerHTML='&times;';
+    dl.addEventListener('click', function(e){
+      e.stopPropagation();
+      var idx = parsed.tasks.indexOf(item);
+      if (idx !== -1) parsed.tasks.splice(idx, 1);
+      manualSave(); renderTodo(container, p);
+    });
+    return dl;
+  }
+
+  var listEl = document.createElement('div'); listEl.className = 'todo-list';
+  var plains  = parsed.tasks.filter(function(t){ return t.type!=='task'; });
+  var pending = parsed.tasks.filter(function(t){ return t.type==='task' && !t.done; });
+  var done    = parsed.tasks.filter(function(t){ return t.type==='task' && t.done; });
+
+  plains.forEach(function(item){
+    var el=document.createElement('div'); el.className='todo-item';
+    var cb=document.createElement('div'); cb.className='todo-checkbox'; cb.title='Convert to task';
+    cb.addEventListener('click',function(e){ e.stopPropagation(); item.type='task'; item.done=false; item.text=item.text.replace(/^-\s+/,''); manualSave(); renderTodo(container,p); });
+    var tx=document.createElement('span'); tx.className='todo-text'; tx.style.color='#94a3b8'; tx.textContent=item.text;
+    tx.addEventListener('click',function(e){ e.stopPropagation(); startEdit(item,tx); });
+    el.appendChild(cb); el.appendChild(tx); el.appendChild(makeDel(item)); listEl.appendChild(el);
+  });
+
+  pending.concat(done).forEach(function(item){
+    var el=document.createElement('div'); el.className='todo-item'+(item.done?' completed':'');
+    var cb=document.createElement('div'); cb.className='todo-checkbox'+(item.done?' checked':'');
+    cb.addEventListener('click',function(e){ e.stopPropagation(); item.done=!item.done; manualSave(); renderTodo(container,p); });
+    var tx=document.createElement('span'); tx.className='todo-text'; tx.textContent=item.text;
+    tx.addEventListener('click',function(e){ e.stopPropagation(); startEdit(item,tx); });
+    el.appendChild(cb); el.appendChild(tx); el.appendChild(makeDel(item)); listEl.appendChild(el);
+  });
+
+  container.appendChild(listEl);
+
+  var addRow=document.createElement('div'); addRow.className='todo-add-row';
+  var addInp=document.createElement('input'); addInp.type='text'; addInp.className='todo-add-input'; addInp.placeholder='Add task… (Enter)';
+  addInp.addEventListener('keydown',function(e){
+    if (e.key==='Enter' && this.value.trim()){
+      e.preventDefault(); parsed.tasks.push({type:'task',text:this.value.trim(),done:false}); this.value='';
+      manualSave(); renderTodo(container,p);
+      var ni=container.querySelector('.todo-add-input'); if(ni) ni.focus();
+    }
+  });
+  addRow.appendChild(addInp); container.appendChild(addRow);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function findPt(id){ for(var i=0;i<patients.length;i++) if(String(patients[i].ID)===String(id)) return patients[i]; return null; }
+function gv(id){ return document.getElementById(id).value.trim(); }
+function sv(id,v){ document.getElementById(id).value = v||''; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg){
+  var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove('show'); },2500);
+}
+</script>
+</body>
+</html>
